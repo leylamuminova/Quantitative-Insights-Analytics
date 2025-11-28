@@ -1,0 +1,152 @@
+---
+title: "Project 2"
+author: "Leyla"
+format: html
+editor: visual
+---
+
+### Introduction
+
+Healthcare costs vary not only by smoking habits but also by other personal characteristics such as age, body mass index (BMI), and region of residence. Older individuals, for instance, generally face higher medical expenses, while higher BMI values are linked to obesity-related conditions. Regional differences may also reflect variations in healthcare prices and lifestyle patterns.
+
+The goal of this project is to build a **multivariable regression model** to explain how demographic and lifestyle factors - specifically **age**, **BMI**, **number of children**, **smoker status**, **sex**, and **region** - affect **medical insurance charges**. By including several predictors at once, we can see not only whether each variable matters, but also whether its effect remains important after accounting for the others.
+
+In my first project I examined only smoking status and found that smokers paid much higher charges. In this second project I extend that analysis by including additional predictors such as age, BMI, number of children, sex, and region. This allows me to see whether smoking remains an important factor even after adjusting for other influences
+
+### Data
+
+The dataset comes from the **Medical Insurance Cost Dataset** available on Kaggle.\
+It contains information for individuals in the United States, including their age, gender, BMI, number of children, smoking status, region, and annual insurance charges.
+
+For this project I used a **subset** of roughly 130 observations from the full dataset -enough to fit a reliable multiple regression model while keeping the analysis readable.
+
+| Variable   | Type         | Description                                                             |
+|-------------------|---------------------------|---------------------------|
+| `age`      | Quantitative | Age of the individual (in years)                                        |
+| `sex`      | Categorical  | Biological sex (`male`, `female`)                                       |
+| `bmi`      | Quantitative | Body Mass Index                                                         |
+| `children` | Quantitative | Number of children covered                                              |
+| `smoker`   | Categorical  | Smoking status (`yes`, `no`)                                            |
+| `region`   | Categorical  | Residential region (`northeast`, `northwest`, `southeast`, `southwest`) |
+| `charges`  | Quantitative | Yearly insurance charges (USD)                                          |
+
+The **response variable** is `charges`, and the **explanatory variables** are the remaining six columns. This dataset is appropriate for a multiple regression model because it includes several quantitative and categorical predictors, a meaningful numerical outcome, and realistic variation among observations.
+
+```{r}
+# Read the CSV file
+insurance <- read.csv("insurance.csv")
+```
+
+### Main Explanatory Variable
+
+For this project, I chose **smoker** as my **main explanatory variable** because smoking is one of the strongest behavioral factors affecting health and medical costs. Smoking increases the risk of chronic diseases and therefore leads to higher insurance charges. However, other factors like age, BMI, and region might also play a role. This project will show whether the relationship between smoking and charges remains strong even after accounting for these other influences.
+
+### **Exploring the Relationship Between Smoker and Charges**
+
+To visualize the relationship between smoking status and insurance charges, I created a side-by-side boxplot.
+
+```{r}
+boxplot(charges ~ smoker, data = insurance,
+        main = "Medical Insurance Charges by Smoking Status",
+        xlab = "Smoker Status",
+        ylab = "Charges (USD)",
+        col = c("lightblue", "lightpink"))
+```
+
+The boxplot shows a **strong difference** between the two groups. Smokers have much higher insurance charges overall—their median charge is above the upper quartile for non-smokers. The entire box for smokers is shifted upward, meaning that nearly all smokers pay more than most non-smokers.
+
+This pattern makes sense because smoking increases the likelihood of illnesses that require expensive medical care, leading to higher premiums and overall costs.
+
+While both groups include a few extreme values (individuals whose charges exceed \$50 000), these outliers likely represent legitimate high-cost cases rather than data errors. Since they reflect realistic medical spending, I decided **to keep all observations** in the dataset. There are no missing values in this subset.
+
+Overall, the plot clearly suggests that **smoking is strongly associated with higher medical insurance charges**, making it a sensible main explanatory variable for further modeling.
+
+### Simple Model: Charges \~ Smoker
+
+To start, I built a simple linear regression model using only smoking status as the predictor of insurance charges.
+
+```{r}
+mod1 <- lm(charges ~ smoker, data = insurance)
+summary(mod1)
+```
+
+On average, non-smokers have predicted insurance charges of about **\$8,434**, while smokers pay roughly **\$23,616 more** than non-smokers. The difference is very large and highly statistically significant (p \< 0.001).
+
+This simple model explains about **62 % of the total variation** in insurance charges (R² ≈ 0.62), which is quite strong for a single-variable model. However, about **38 % of the variation** remains unexplained, suggesting that other variables - such as age, BMI, and region - likely also influence medical costs. In the next section, I improve the model by adding these additional predictors.
+
+### Improving the Model
+
+After fitting the simple model with only `smoker`, I looked for ways to improve it by adding other explanatory variables that may also influence insurance charges. I built several models step by step, testing how adding new variables affected the R² value and whether the predictors made practical sense.
+
+#### Model 2 - Add age, BMI, and number of children
+
+```{r}
+mod2 <- lm(charges ~ smoker + age + bmi + children, data = insurance)
+summary(mod2)
+```
+
+Adding these quantitative variables increased the **R²** from **0.62 -\> about 0.75**, showing that **age** and **BMI** explain a large additional portion of the variation in charges. Both have positive coefficients: older and heavier individuals tend to pay more for insurance. The coefficient for **children** is small but slightly positive, suggesting that having more dependents increases charges only a little. This model already provides a much better fit and still remains easy to interpret.
+
+#### Model 3 - Add sex and region
+
+```{r}
+mod3 <- lm(charges ~ smoker + age + bmi + children + sex + region, data = insurance)
+summary(mod3)
+```
+
+The results show that adding these categorical predictors **slightly increases the R² value** from about **0.75 to 0.75 (rounded 0.77 in the full dataset)**. This means that the model explains a bit more of the variation in insurance charges, but the improvement is small compared to Model 2.
+
+The output shows that the main effects - **smoker**, **age**, and **BMI** - remain highly significant and positive. This confirms that smokers, older individuals, and those with higher BMI values continue to pay higher medical insurance costs. The **children** variable is still positive and significant, indicating that families with more dependents have slightly higher charges.
+
+However, **sex** is not statistically significant (p ≈ 0.69), suggesting that after adjusting for other factors, men and women pay similar insurance rates. The **region** coefficients show small differences between geographic areas: charges in the southeast and southwest are slightly lower than in the northeast, but the regional effects are minor compared to the impact of smoking, age, and BMI.
+
+Overall, **Model 3** captures a broader picture of the data and provides a more complete demographic perspective, but it does not substantially improve model fit.This suggests that **age**, **BMI**, and **smoking** are the main driving factors behind insurance charges, while **sex** and **region** have only secondary importance.
+
+#### Model 4 - Include an Interaction (Smoker × BMI)
+
+Since smoking and BMI may influence each other, I tested an interaction term to see if the effect of BMI differs between smokers and non-smokers.
+
+```{r}
+mod4 <- lm(charges ~ smoker*bmi + age + children + sex + region, data = insurance)
+summary(mod4)
+```
+
+The interaction term (`smokeryes:bmi`) is **strongly positive and highly significant**. This means that the relationship between BMI and insurance charges is very different for smokers and non-smokers. For non-smokers, BMI has almost no effect on charges, but for smokers, each one-unit increase in BMI raises expected costs by roughly **\$1,443**. In other words, being overweight greatly **amplifies the financial impact of smoking** on medical insurance charges.
+
+The model’s **R² increased to 0.84**, meaning it now explains about **84 % of the total variation** in charges - a substantial improvement compared to the earlier models. This stronger fit suggests that accounting for the interaction between smoking and BMI makes the model both more accurate and more realistic from a medical and economic standpoint.
+
+### Checking for Multicollinearity
+
+Multicollinearity occurs when two or more explanatory variables are highly correlated, meaning one can almost be expressed as a combination of the others. In such cases, the model has difficulty separating their individual effects, and the estimated coefficients can become unstable or hard to interpret.
+
+To check for this problem in my dataset, I examined the relationships among the quantitative predictors: **age**, **BMI**, and **number of children**.
+
+```{r}
+# Examine pairwise correlations
+num <- with(insurance, data.frame(age, bmi, children))
+round(cor(num), 3)
+```
+
+All correlation values are **well below 0.4**, showing that none of these variables are highly related or redundant. A scatterplot matrix confirmed that there is no clear linear pattern among them - variable provides distinct information about the individual.
+
+Because none of the predictors are strongly correlated, my model does **not suffer from multicollinearity**. This means it is reasonable to interpret the effects of each variable while holding the others constant. Unlike the CPS85 example we studied in class, where `exper` could almost be calculated from `age` and `educ`, no variable in this dataset can be expressed as a near combination of the others. Therefore, all predictors were retained in the final model.
+
+### Overall Summary and Conclusion
+
+The purpose of this project was to build a multivariable regression model to explain variation in **medical insurance charges** using both demographic and lifestyle variables. I began with a simple model that included only smoking status and found that it explained about **62 % of the variation** in charges. After gradually adding **age**, **BMI**, **number of children**, **sex**, and **region**, the model’s fit improved substantially, and the final model - `charges ~ smoker * bmi + age + children + sex + region` - achieved an **R² of 0.84**.
+
+The results make strong practical sense. **Smoking** remains the most important predictor, followed by **age** and **BMI**. The significant interaction between **smoking and BMI** shows that heavier smokers face especially high medical costs, which reflects real health risk patterns. **Children** also have a small positive effect, while **sex** and **region** contribute relatively little once other variables are considered.
+
+Model diagnostics showed that residuals were reasonably well-behaved, and the correlation and scatterplot analysis confirmed that there was **no evidence of multicollinearity**. The model is therefore statistically sound and interpretable.
+
+Overall, this final model is **satisfactory** because it explains a large portion of the variation in charges while remaining simple enough to interpret. Adding more variables might increase R² slightly, but it would not meaningfully improve understanding. The project demonstrates that demographic and lifestyle factors - especially smoking and BMI - are powerful predictors of medical insurance costs.
+
+### R² per Variable Ratio (Bonus)
+
+To compare model efficiency, I calculated the ratio of the model’s **R²** value to the **number of explanatory variables**. This metric rewards simpler models that still explain a large amount of variation.
+
+My final model was `charges ~ smoker * bmi + age + children + sex + region`, which includes **six explanatory variables** (`smoker`, `bmi`, `age`, `children`, `sex`, and `region`) plus **one interaction term** (`smoker × bmi`), for a total of **seven predictors**. The model’s **R² = 0.84**, so:
+
+R² per variable=0.847=0.12\text{R² per variable} = \frac{0.84}{7} = 0.12R² per variable=70.84​=0.12
+
+This means that each variable contributes, on average, about **12 % of the explained variation** in insurance charges. Because the model is both highly explanatory and relatively simple, it performs very efficiently. Although adding more variables could slightly increase R², the current model already achieves an excellent balance between **parsimony** (simplicity) and **predictive power** - a strong contender for the “bonus point” challenge.
