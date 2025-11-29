@@ -1,0 +1,113 @@
+---
+title: "Project 1"
+author: "Leyla Muminova"
+date: "2025-10-14"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Introduction
+
+In recent years, the demand for data science professionals has continued to grow across nearly every industry. With more companies relying on data-driven decisions, understanding how job roles, skills, and salaries vary within the data science field has become especially relevant in 2025. For this project, I chose a dataset from Kaggle titled *“Data Science Careers & Salaries 2025,”* which includes job postings for data science-related roles from various companies around the world. The dataset provides information on job titles, company size, location, work status (remote, hybrid, or on-site), and salary ranges, along with the skills most frequently requested.
+
+My main research question is:\
+**“What factors appear to influence salary differences among data science roles in 2025, and how do work type, seniority level, and required skills relate to these differences?”**
+
+This question connects directly to core data science skills like data wrangling, visualization, and interpretation. Using this dataset, I plan to explore patterns such as how remote jobs compare to on-site ones in terms of pay, which skills are most associated with higher salaries, and whether senior positions follow predictable trends across different regions.
+
+Ethically, it is important to consider that salary data, even when aggregated, may still reflect systemic biases in hiring practices or compensation based on geography, gender, or other factors. While this dataset does not include personal identifiers, any conclusions should be interpreted carefully, recognizing that factors like cost of living or company size can shape pay beyond skill or role alone.
+
+To interpret the findings accurately, I will reference supporting data from reputable sources such as the **U.S. Bureau of Labor Statistics (BLS)** and recent **peer-reviewed research** on salary modeling and equity in data science. These will help ground my analysis in broader labor-market evidence and ensure my conclusions go beyond surface-level patterns.
+
+#### Data Wrangling and Visualization
+
+After downloading the *Data Science Careers & Salaries 2025* dataset from Kaggle, I imported it into R and explored its structure to see what variables I could use. I noticed that the dataset included job titles, work type (remote, hybrid, on-site), salary ranges, seniority level, and skills. Some of the text variables were inconsistent in capitalization, and the skills column contained multiple skills separated by commas. I cleaned these columns to make them easier to analyze and created a new variable called `salary_clean` to estimate an approximate salary for each job. Since the salary column sometimes listed ranges, I kept the first number as a representative value for simplicity.
+
+```{r}
+library(tidyverse)
+
+# Read dataset
+ds_jobs <- read.csv("data_science_job_posts_2025.csv")
+
+# Basic cleaning
+ds_jobs_clean <- ds_jobs %>%
+  mutate(
+    seniority_level = str_to_title(seniority_level),
+    status = str_to_title(status),
+    # remove euro signs and commas, keep first number only
+    salary_clean = gsub("€|,", "", salary),
+    salary_clean = as.numeric(sub(" .*", "", salary_clean))  # take only first number
+  ) %>%
+  filter(!is.na(salary_clean), status %in% c("Remote", "Hybrid", "On-Site"))
+
+# Quick check of the cleaned dataset
+glimpse(ds_jobs_clean)
+head(ds_jobs_clean)
+summary(ds_jobs_clean$salary_clean)
+```
+
+For my visualizations, I plan to use a **bar chart** to compare average salaries across seniority levels, a **boxplot** to show the range of salaries by work type, and a **horizontal bar chart** to display the most common skills listed in job postings. These plots were chosen because they clearly highlight differences and patterns related to my main question about how salaries vary by job characteristics in data science careers.
+
+#### Results and Interpretation
+
+To explore my question about what factors influence salaries in data-science jobs, I focused on two related variables: **seniority level** and **work type**. Both are important because they reflect experience and job flexibility, which can affect pay.
+
+First, I made a bar chart to compare the **average salary by seniority level**.
+
+```{r}
+# Remove blank seniority values
+ds_jobs_clean <- ds_jobs_clean %>%
+  filter(seniority_level != "" & !is.na(seniority_level))
+
+# Average salary by seniority level
+avg_salary <- ds_jobs_clean %>%
+  group_by(seniority_level) %>%
+  summarize(mean_salary = mean(salary_clean, na.rm = TRUE))
+
+ggplot(avg_salary, aes(x = seniority_level, y = mean_salary)) +
+  geom_col() +
+  labs(title = "Average Salary by Seniority Level",
+       x = "Seniority Level",
+       y = "Average Salary (EUR)")
+```
+
+From this plot, I noticed that **lead and senior roles** have the highest salaries, while **junior** and **mid-level** roles make less. This makes sense because more experienced employees usually handle greater responsibilities and have specialized skills. According to the **U.S. Bureau of Labor Statistics (2025) [(link)](https://www.bls.gov/ooh/computer-and-information-technology/computer-and-information-research-scientists.htm)**[,](https://www.bls.gov/ooh/computer-and-information-technology/computer-and-information-research-scientists.htm?utm_source=chatgpt.com) experienced data scientists tend to earn significantly higher median salaries, which supports what I see in my dataset.
+
+Next, I looked at how **work type (remote, hybrid, or on-site)** affects salary. This continues exploring salary differences but from a different angle.
+
+```{r}
+# Limit the y-axis to remove extreme outliers
+ggplot(ds_jobs_clean, aes(x = status, y = salary_clean)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0, 300000)) +
+  labs(title = "Salary by Work Type",
+       x = "Work Type",
+       y = "Salary (EUR)")
+```
+
+A few salary values in the dataset were extremely high (over €2 million), probably due to scraping or entry errors, so I zoomed in on the range below €300,000 to see normal patterns more clearly. From the boxplot, **on-site jobs show slightly higher median salaries** than remote or hybrid roles. The differences are not large, suggesting that work flexibility alone does not strongly affect pay.
+
+Research by **Wu & Hewage (2024) [(link)](https://online.op.ac.nz/assets/Uploads/Investigating-Equity-in-Remote-Salaries.pdf)** also found that while remote data-science jobs are growing, **experience and skill level remain the biggest predictors of salary**, which fits my results. Similarly, **Taha et al. (2025)**[(link)](https://www.jcbi.org/index.php/Main/article/view/882)used predictive modeling and found that **experience, company size, and location** explain most pay variation, supporting the pattern I see in my plots.
+
+Overall, both charts show that **experience** and **job flexibility** influence salary levels in data-science roles - experienced professionals and remote workers generally earn more, but experience remains the strongest factor.
+
+#### Ethical Considerations
+
+While analyzing this dataset, it was important to think about the ethical issues that can come up when studying salary information. Even though no personal data like names or genders were included, the dataset may still reflect **systemic pay gaps or hiring inequalities** that exist in the real world. For example, salaries can be affected by location, gender, or company bias, not just by skill or experience. Because of that, I tried to interpret my results carefully and avoid assuming that all salary differences were fair or purely based on merit.
+
+I also considered that using salary data from public job postings could misrepresent certain groups if the data source does not include them equally. Ethical data analysis means recognizing these limitations and being transparent about them. Overall, I treated the dataset as a learning tool rather than proof of exact pay differences, keeping in mind that real-world compensation is influenced by many social and structural factors beyond what the numbers show.
+
+#### AI Use Statement
+
+For this project, I used AI tools, specifically **ChatGPT**, to help me organize my ideas, review R syntax, and make my writing clearer and more structured. I wrote all of the analysis, R code, and interpretations myself, but I used ChatGPT to check for small errors, suggest smoother wording, and confirm that my RMarkdown followed the assignment guidelines. The AI also helped me find credible references, such as peer-reviewed papers and government sources, which I later verified independently. I take full responsibility for the final work, data analysis, and interpretations presented in this project.
+
+#### **References**
+
+-   U.S. Bureau of Labor Statistics. (2025). *Computer and Information Research Scientists.* Retrieved from <https://www.bls.gov/ooh/computer-and-information-technology/computer-and-information-research-scientists.htm>
+
+-   Wu, L., & Hewage, W. (2024). *Investigating Equity in Remote Salaries in the Data Science Field Using Data Analysis Techniques.* Otago Polytechnic Institute of Technology. <https://online.op.ac.nz/assets/Uploads/Investigating-Equity-in-Remote-Salaries.pdf>
+
+-   Taha, M., Farhat, T., Azam, A., et al. (2025). *Unveiling Data Scientist Salaries: Predictive Modeling for Compensation Trends.* *Journal of Computing & Biomedical Informatics.* <https://www.jcbi.org/index.php/Main/article/view/882>
